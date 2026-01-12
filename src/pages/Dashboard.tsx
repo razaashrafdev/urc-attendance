@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
-import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
-import { Users, UserCheck, UserX, Calendar } from 'lucide-react';
+import { format, subDays, formatDistanceToNow } from 'date-fns';
+import { Users, UserCheck, UserX, Calendar, RefreshCw, Server, CheckCircle, AlertCircle } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { AttendanceChart } from '@/components/dashboard/AttendanceChart';
 import { AttendanceStatusBadge } from '@/components/attendance/AttendanceStatusBadge';
-import { DateRangeFilter } from '@/components/attendance/DateRangeFilter';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 interface DashboardStats {
   totalEmployees: number;
@@ -25,6 +26,12 @@ interface RecentAttendance {
   status: 'present' | 'absent' | 'weekend' | 'holiday' | 'half_day';
 }
 
+interface SyncInfo {
+  lastSync: string | null;
+  deviceCount: number;
+  activeDevices: number;
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalEmployees: 0,
@@ -34,11 +41,47 @@ export default function Dashboard() {
   });
   const [recentAttendance, setRecentAttendance] = useState<RecentAttendance[]>([]);
   const [chartData, setChartData] = useState<{ date: string; present: number; absent: number }[]>([]);
+  const [syncInfo, setSyncInfo] = useState<SyncInfo>({ lastSync: null, deviceCount: 0, activeDevices: 0 });
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchSyncInfo();
   }, []);
+
+  const fetchSyncInfo = async () => {
+    try {
+      const { data: devices } = await supabase
+        .from('devices')
+        .select('id, is_active, last_sync_at');
+
+      const { data: latestSync } = await supabase
+        .from('sync_logs')
+        .select('sync_start_at')
+        .order('sync_start_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      setSyncInfo({
+        lastSync: latestSync?.sync_start_at || null,
+        deviceCount: devices?.length || 0,
+        activeDevices: devices?.filter(d => d.is_active).length || 0,
+      });
+    } catch (error) {
+      console.error('Error fetching sync info:', error);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setSyncing(true);
+    toast.info('Refreshing data from database...');
+    
+    await Promise.all([fetchDashboardData(), fetchSyncInfo()]);
+    
+    toast.success('Data refreshed! To sync from device, run the local sync service.');
+    setSyncing(false);
+  };
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -119,9 +162,51 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="page-header">
-        <h1 className="page-title">Dashboard</h1>
-        <p className="page-description">Overview of attendance statistics and recent activity</p>
+      <div className="page-header flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-description">Overview of attendance statistics and recent activity</p>
+        </div>
+        
+        {/* Sync Status Card */}
+        <Card className="sm:min-w-[280px]">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  syncInfo.activeDevices > 0 ? 'bg-green-500/10' : 'bg-muted'
+                }`}>
+                  {syncInfo.activeDevices > 0 ? (
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-muted-foreground" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">
+                    {syncInfo.activeDevices > 0 
+                      ? `${syncInfo.activeDevices} Device${syncInfo.activeDevices > 1 ? 's' : ''} Active`
+                      : 'No Active Devices'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {syncInfo.lastSync 
+                      ? `Last sync: ${formatDistanceToNow(new Date(syncInfo.lastSync), { addSuffix: true })}`
+                      : 'Never synced'}
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefresh}
+                disabled={syncing}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Stats Grid */}

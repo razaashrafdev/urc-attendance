@@ -11,6 +11,7 @@ import Attendance from "./pages/Attendance";
 import Weekends from "./pages/Weekends";
 import Holidays from "./pages/Holidays";
 import Reports from "./pages/Reports";
+import Devices from "./pages/Devices";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -33,6 +34,7 @@ function AppRoutes() {
       <Route path="/weekends" element={<ProtectedRoute><Weekends /></ProtectedRoute>} />
       <Route path="/holidays" element={<ProtectedRoute><Holidays /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path="/devices" element={<ProtectedRoute><Devices /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

@@ -10,7 +10,8 @@ import {
   LogOut,
   Menu,
   X,
-  Clock
+  Clock,
+  Server
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ const navItems = [
   { path: '/weekends', label: 'Weekends', icon: Calendar },
   { path: '/holidays', label: 'Holidays', icon: CalendarDays },
   { path: '/reports', label: 'Reports', icon: FileText },
+  { path: '/devices', label: 'Devices', icon: Server },
 ];
 
 export function AppLayout({ children }: AppLayoutProps) {
