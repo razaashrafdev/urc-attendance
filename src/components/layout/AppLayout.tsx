@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, CalendarDays, FileText, Settings, LogOut, Menu, X, Clock } from 'lucide-react';
+import { LayoutDashboard, Users, CalendarDays, FileText, LogOut, Menu, X, Clock, Server } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -20,10 +20,6 @@ const navItems = [{
   label: 'Attendance',
   icon: Clock
 }, {
-  path: '/weekends',
-  label: 'Weekends',
-  icon: Calendar
-}, {
   path: '/holidays',
   label: 'Holidays',
   icon: CalendarDays
@@ -31,6 +27,10 @@ const navItems = [{
   path: '/reports',
   label: 'Reports',
   icon: FileText
+}, {
+  path: '/devices',
+  label: 'Devices',
+  icon: Server
 }];
 export function AppLayout({
   children

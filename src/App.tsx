@@ -8,7 +8,6 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import Attendance from "./pages/Attendance";
-import Weekends from "./pages/Weekends";
 import Holidays from "./pages/Holidays";
 import Reports from "./pages/Reports";
 import Devices from "./pages/Devices";
@@ -31,7 +30,6 @@ function AppRoutes() {
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
       <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
-      <Route path="/weekends" element={<ProtectedRoute><Weekends /></ProtectedRoute>} />
       <Route path="/holidays" element={<ProtectedRoute><Holidays /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/devices" element={<ProtectedRoute><Devices /></ProtectedRoute>} />
