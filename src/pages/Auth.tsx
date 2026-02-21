@@ -14,7 +14,7 @@ export default function Auth() {
   const { signIn } = useAuth();
   const { toast } = useToast();
 
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loginForm, setLoginForm] = useState({ email: 'admin@urc.com', password: 'admin@urc' });
 
   if (loading) {
     return (
