@@ -27,10 +27,15 @@ Deno.serve(async (req) => {
     );
 
     if (adminExists) {
+      // Update password to latest
+      const adminUser = existingUsers?.users?.find(u => u.email === "admin@urc.com");
+      if (adminUser) {
+        await supabase.auth.admin.updateUserById(adminUser.id, { password: "admin@urc" });
+      }
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: "Admin user already exists. Login with admin@urc.com / admin123" 
+          message: "Admin user updated. Login with admin@urc.com / admin@urc" 
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -39,7 +44,7 @@ Deno.serve(async (req) => {
     // Create admin user
     const { data: newUser, error } = await supabase.auth.admin.createUser({
       email: "admin@urc.com",
-      password: "admin123",
+      password: "admin@urc",
       email_confirm: true,
       user_metadata: {
         role: "admin",
@@ -64,7 +69,7 @@ Deno.serve(async (req) => {
         message: "Admin user created successfully!",
         credentials: {
           email: "admin@urc.com",
-          password: "admin123",
+          password: "admin@urc",
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

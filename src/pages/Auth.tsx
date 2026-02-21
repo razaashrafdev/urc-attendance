@@ -65,6 +65,7 @@ export default function Auth() {
                 id="login-email"
                 type="email"
                 placeholder="admin@urc.com"
+                defaultValue="admin@urc.com"
                 value={loginForm.email}
                 onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
                 required
