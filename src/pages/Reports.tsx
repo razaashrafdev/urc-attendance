@@ -40,7 +40,7 @@ export default function Reports() {
   return (
     <AppLayout>
       <div className="page-header"><h1 className="page-title">Reports</h1><p className="page-description">Generate attendance reports</p></div>
-      <Card className="max-w-2xl">
+      <Card className="w-full">
         <CardHeader><CardTitle>PDF Attendance Report</CardTitle><CardDescription>Generate downloadable attendance reports with Name, Date, Day, Check In, Check Out, and Work Hours.</CardDescription></CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
