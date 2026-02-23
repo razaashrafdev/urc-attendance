@@ -143,27 +143,6 @@ export default function Employees() {
         </Dialog>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        {[
-          { icon: Users, label: 'Total', value: employees.length, color: 'text-primary' },
-          { icon: UserCheck, label: 'Active', value: activeCount, color: 'text-emerald-600' },
-          { icon: UserX, label: 'Inactive', value: inactiveCount, color: 'text-red-600' },
-        ].map((stat, i) => (
-          <Card key={i} className="p-4">
-            <div className="flex items-center gap-3">
-              <div className={cn('p-2 rounded-lg bg-muted', stat.color)}>
-                <stat.icon className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
       {/* Search */}
       <div className="mb-4">
         <div className="relative max-w-sm">
