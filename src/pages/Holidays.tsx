@@ -88,47 +88,17 @@ export default function Holidays() {
         </Dialog>
       </div>
 
-      {/* Stat Cards - Weekend Toggles */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {/* Saturday Toggle */}
-        <Card className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => saturdayConfig && toggleWeekend(6, saturdayConfig.is_weekend)}>
-          <div className="flex items-center gap-3">
-            <div className={cn('p-2 rounded-lg', saturdayConfig?.is_weekend ? 'bg-emerald-100 text-emerald-600' : 'bg-muted text-muted-foreground')}>
-              {saturdayConfig?.is_weekend ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-            </div>
-            <div>
-              <p className="font-bold text-sm">Saturday</p>
-              <p className={cn('text-xs font-medium', saturdayConfig?.is_weekend ? 'text-emerald-600' : 'text-muted-foreground')}>
-                {saturdayConfig?.is_weekend ? 'Day Off' : 'Working'}
-              </p>
-            </div>
-          </div>
-        </Card>
-        {/* Sunday Toggle */}
-        <Card className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => sundayConfig && toggleWeekend(0, sundayConfig.is_weekend)}>
-          <div className="flex items-center gap-3">
-            <div className={cn('p-2 rounded-lg', sundayConfig?.is_weekend ? 'bg-emerald-100 text-emerald-600' : 'bg-muted text-muted-foreground')}>
-              {sundayConfig?.is_weekend ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-            </div>
-            <div>
-              <p className="font-bold text-sm">Sunday</p>
-              <p className={cn('text-xs font-medium', sundayConfig?.is_weekend ? 'text-emerald-600' : 'text-muted-foreground')}>
-                {sundayConfig?.is_weekend ? 'Day Off' : 'Working'}
-              </p>
-            </div>
-          </div>
-        </Card>
-        {/* Upcoming Count */}
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-muted text-blue-600"><Calendar className="w-5 h-5" /></div>
+            <div className="p-2 rounded-lg bg-muted text-primary"><Calendar className="w-5 h-5" /></div>
             <div>
               <p className="text-2xl font-bold">{upcomingHolidays.length}</p>
               <p className="text-xs text-muted-foreground">Upcoming</p>
             </div>
           </div>
         </Card>
-        {/* Total */}
         <Card className="p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-muted text-primary"><Calendar className="w-5 h-5" /></div>
