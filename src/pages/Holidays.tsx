@@ -14,8 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-interface Holiday { id: string; holiday_date: string; holiday_name: string; holiday_type: 'paid' | 'unpaid'; }
-interface WeekendConfig { id: string; day_of_week: number; is_weekend: boolean; }
+interface Holiday {id: string;holiday_date: string;holiday_name: string;holiday_type: 'paid' | 'unpaid';}
+interface WeekendConfig {id: string;day_of_week: number;is_weekend: boolean;}
 
 export default function Holidays() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -25,7 +25,7 @@ export default function Holidays() {
   const [formData, setFormData] = useState({ holiday_date: undefined as Date | undefined, holiday_name: '', holiday_type: 'paid' as 'paid' | 'unpaid' });
   const { toast } = useToast();
 
-  useEffect(() => { fetchHolidays(); fetchWeekendConfig(); }, []);
+  useEffect(() => {fetchHolidays();fetchWeekendConfig();}, []);
 
   const fetchHolidays = async () => {
     const { data } = await supabase.from('holidays').select('*').order('holiday_date');
@@ -42,8 +42,8 @@ export default function Holidays() {
     e.preventDefault();
     if (!formData.holiday_date) return;
     const { error } = await supabase.from('holidays').insert({ holiday_date: format(formData.holiday_date, 'yyyy-MM-dd'), holiday_name: formData.holiday_name, holiday_type: formData.holiday_type });
-    if (error) toast({ variant: 'destructive', title: 'Error', description: error.message });
-    else { toast({ title: 'Holiday added' }); setDialogOpen(false); setFormData({ holiday_date: undefined, holiday_name: '', holiday_type: 'paid' }); fetchHolidays(); }
+    if (error) toast({ variant: 'destructive', title: 'Error', description: error.message });else
+    {toast({ title: 'Holiday added' });setDialogOpen(false);setFormData({ holiday_date: undefined, holiday_name: '', holiday_type: 'paid' });fetchHolidays();}
   };
 
   const handleDelete = async (id: string) => {
@@ -54,21 +54,21 @@ export default function Holidays() {
 
   const toggleWeekend = async (dayOfWeek: number, currentValue: boolean) => {
     const { error } = await supabase.from('weekend_config').update({ is_weekend: !currentValue }).eq('day_of_week', dayOfWeek);
-    if (error) toast({ variant: 'destructive', title: 'Error', description: error.message });
-    else { toast({ title: `${dayOfWeek === 6 ? 'Saturday' : 'Sunday'} ${!currentValue ? 'Off' : 'Working'}` }); fetchWeekendConfig(); }
+    if (error) toast({ variant: 'destructive', title: 'Error', description: error.message });else
+    {toast({ title: `${dayOfWeek === 6 ? 'Saturday' : 'Sunday'} ${!currentValue ? 'Off' : 'Working'}` });fetchWeekendConfig();}
   };
 
-  const saturdayConfig = weekendConfig.find(c => c.day_of_week === 6);
-  const sundayConfig = weekendConfig.find(c => c.day_of_week === 0);
-  const upcomingHolidays = holidays.filter(h => new Date(h.holiday_date) >= new Date());
-  const pastHolidays = holidays.filter(h => new Date(h.holiday_date) < new Date());
+  const saturdayConfig = weekendConfig.find((c) => c.day_of_week === 6);
+  const sundayConfig = weekendConfig.find((c) => c.day_of_week === 0);
+  const upcomingHolidays = holidays.filter((h) => new Date(h.holiday_date) >= new Date());
+  const pastHolidays = holidays.filter((h) => new Date(h.holiday_date) < new Date());
 
   return (
     <AppLayout>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">Holidays & Weekends</h1>
+          <h1 className="text-2xl font-semibold">Holidays</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage holidays and weekly off days</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -116,10 +116,10 @@ export default function Holidays() {
           <span className="font-semibold text-sm">All Holidays</span>
         </div>
         <CardContent className="p-0">
-          {loading ? (
-            <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-          ) : (
-            <>
+          {loading ?
+          <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> :
+
+          <>
               {/* Header */}
               <div className="hidden sm:grid grid-cols-[1fr_2fr_1fr_80px] gap-2 px-4 py-3 bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 <span>Date</span>
@@ -127,16 +127,16 @@ export default function Holidays() {
                 <span>Type</span>
                 <span className="text-right">Actions</span>
               </div>
-              {holidays.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">No holidays added yet</div>
-              ) : (
-                holidays.map(h => {
-                  const isPast = new Date(h.holiday_date) < new Date();
-                  return (
-                    <div key={h.id} className={cn(
-                      'flex flex-col sm:grid sm:grid-cols-[1fr_2fr_1fr_80px] gap-1 sm:gap-2 sm:items-center px-4 py-3 border-b border-border last:border-0 hover:bg-muted/30 transition-colors',
-                      isPast && 'opacity-60'
-                    )}>
+              {holidays.length === 0 ?
+            <div className="text-center py-12 text-muted-foreground">No holidays added yet</div> :
+
+            holidays.map((h) => {
+              const isPast = new Date(h.holiday_date) < new Date();
+              return (
+                <div key={h.id} className={cn(
+                  'flex flex-col sm:grid sm:grid-cols-[1fr_2fr_1fr_80px] gap-1 sm:gap-2 sm:items-center px-4 py-3 border-b border-border last:border-0 hover:bg-muted/30 transition-colors',
+                  isPast && 'opacity-60'
+                )}>
                       <div>
                         <p className="text-sm font-mono">{format(new Date(h.holiday_date), 'dd MMM yyyy')}</p>
                         <p className="text-[10px] text-muted-foreground sm:hidden">{format(new Date(h.holiday_date), 'EEEE')}</p>
@@ -144,9 +144,9 @@ export default function Holidays() {
                       <p className="font-medium text-sm">{h.holiday_name}</p>
                       <span>
                         <span className={cn(
-                          'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border',
-                          h.holiday_type === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-600 border-gray-200'
-                        )}>
+                      'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border',
+                      h.holiday_type === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-600 border-gray-200'
+                    )}>
                           {h.holiday_type}
                         </span>
                       </span>
@@ -155,14 +155,14 @@ export default function Holidays() {
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
-                    </div>
-                  );
-                })
-              )}
+                    </div>);
+
+            })
+            }
             </>
-          )}
+          }
         </CardContent>
       </Card>
-    </AppLayout>
-  );
+    </AppLayout>);
+
 }
