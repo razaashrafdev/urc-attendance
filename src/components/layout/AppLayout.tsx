@@ -18,16 +18,23 @@ const navItems = [
   { path: '/devices', label: 'Devices', icon: Server },
 ];
 
+function getPageTitle(pathname: string) {
+  const item = navItems.find(n => n.path === pathname);
+  return item?.label || 'Page';
+}
+
 export function AppLayout({ children }: AppLayoutProps) {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pageTitle = getPageTitle(location.pathname);
 
   return (
     <div className="min-h-screen flex bg-background">
       {/* Desktop Sidebar - icon only, expands on hover */}
       <aside
         className="hidden lg:flex flex-col bg-sidebar border-r border-sidebar-border h-screen sticky top-0 w-[68px] hover:w-64 transition-all duration-300 ease-in-out overflow-hidden group/sidebar"
+        style={{ overflowX: 'hidden' }}
       >
         {/* Logo */}
         <div className="p-4 border-b border-sidebar-border flex items-center gap-3 h-16 shrink-0">
@@ -40,7 +47,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto overflow-x-hidden scrollbar-hide">
           {navItems.map(item => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
@@ -83,15 +90,15 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border">
         <div className="flex items-center justify-between px-4 h-14">
-          <h1 className="text-base font-bold flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Clock className="w-4 h-4 text-primary-foreground" />
-            </div>
-            URC Attendance
-          </h1>
-          <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </Button>
+            <h1 className="text-base font-bold">{pageTitle}</h1>
+          </div>
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <Clock className="w-4 h-4 text-primary-foreground" />
+          </div>
         </div>
 
         {/* Mobile Menu */}
@@ -126,7 +133,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 lg:p-8 p-4 pt-18 lg:pt-8 overflow-auto">
+      <main className="flex-1 lg:p-8 p-4 pt-18 lg:pt-8 overflow-auto overflow-x-hidden">
         {children}
       </main>
     </div>
