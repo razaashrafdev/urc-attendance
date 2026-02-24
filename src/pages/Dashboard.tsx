@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { format, subDays, formatDistanceToNow } from 'date-fns';
+import { format, subDays, subMonths, eachDayOfInterval, formatDistanceToNow } from 'date-fns';
 import { Users, UserCheck, UserX, Calendar, RefreshCw, CheckCircle, AlertCircle, Clock, TrendingUp } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AttendanceChart } from '@/components/dashboard/AttendanceChart';
@@ -57,6 +57,7 @@ export default function Dashboard() {
   const [syncInfo, setSyncInfo] = useState<SyncInfo>({ lastSync: null, activeDevices: 0 });
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [chartPeriod, setChartPeriod] = useState<'week' | 'month'>('week');
 
   useEffect(() => {
     fetchAll();
@@ -122,15 +123,36 @@ export default function Dashboard() {
       }) || [];
       setRecentRecords(recent);
 
-      const last7Days = Array.from({ length: 7 }, (_, i) => format(subDays(new Date(), 6 - i), 'yyyy-MM-dd'));
-      const { data: weeklyAttendance } = await supabase.from('daily_attendance').select('attendance_date, status').in('attendance_date', last7Days);
-      setChartData(last7Days.map(date => ({
-        date: format(new Date(date), 'EEE'),
-        present: weeklyAttendance?.filter(a => a.attendance_date === date && a.status === 'present').length || 0,
-        absent: weeklyAttendance?.filter(a => a.attendance_date === date && a.status === 'absent').length || 0,
-      })));
+      await fetchChartData('week');
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+    }
+  };
+
+  const fetchChartData = async (period: 'week' | 'month') => {
+    setChartPeriod(period);
+    try {
+      if (period === 'week') {
+        const days = Array.from({ length: 7 }, (_, i) => format(subDays(new Date(), 6 - i), 'yyyy-MM-dd'));
+        const { data } = await supabase.from('daily_attendance').select('attendance_date, status').in('attendance_date', days);
+        setChartData(days.map(date => ({
+          date: format(new Date(date), 'EEE'),
+          present: data?.filter(a => a.attendance_date === date && a.status === 'present').length || 0,
+          absent: data?.filter(a => a.attendance_date === date && a.status === 'absent').length || 0,
+        })));
+      } else {
+        const end = new Date();
+        const start = subMonths(end, 1);
+        const allDays = eachDayOfInterval({ start, end }).map(d => format(d, 'yyyy-MM-dd'));
+        const { data } = await supabase.from('daily_attendance').select('attendance_date, status').in('attendance_date', allDays);
+        setChartData(allDays.map(date => ({
+          date: format(new Date(date), 'dd MMM'),
+          present: data?.filter(a => a.attendance_date === date && a.status === 'present').length || 0,
+          absent: data?.filter(a => a.attendance_date === date && a.status === 'absent').length || 0,
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching chart data:', error);
     }
   };
 
@@ -206,8 +228,22 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart */}
         <Card className="lg:col-span-2">
-          <div className="px-4 py-3 border-b border-border">
-            <span className="font-semibold text-sm">Weekly Attendance Overview</span>
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+            <span className="font-semibold text-sm">Attendance Overview</span>
+            <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+              <button
+                onClick={() => fetchChartData('week')}
+                className={cn('px-3 py-1 text-xs font-medium rounded-md transition-colors', chartPeriod === 'week' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+              >
+                Week
+              </button>
+              <button
+                onClick={() => fetchChartData('month')}
+                className={cn('px-3 py-1 text-xs font-medium rounded-md transition-colors', chartPeriod === 'month' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+              >
+                Month
+              </button>
+            </div>
           </div>
           <CardContent className="pt-4">
             <AttendanceChart data={chartData} />
