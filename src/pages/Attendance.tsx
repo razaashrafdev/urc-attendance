@@ -1,11 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isToday, isSameDay, getDay } from 'date-fns';
-import { ChevronLeft, ChevronRight, Loader2, Download, Users, UserCheck, Clock, UserX, CalendarDays } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isToday, isSameDay, getDay, addDays } from 'date-fns';
+import { ChevronLeft, ChevronRight, Loader2, Users, UserCheck, Clock, UserX, CalendarDays, CalendarIcon, ClipboardCheck } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
-import { downloadAttendancePDF } from '@/lib/pdfGenerator';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 interface AttendanceRecord {
@@ -65,18 +70,20 @@ export default function Attendance() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
+  const [markDialogOpen, setMarkDialogOpen] = useState(false);
+  const [markType, setMarkType] = useState<'present' | 'absent' | 'half_day'>('present');
+  const [markEmployeeId, setMarkEmployeeId] = useState<string>('');
+  const [markStartDate, setMarkStartDate] = useState<Date | undefined>(undefined);
+  const [markEndDate, setMarkEndDate] = useState<Date | undefined>(undefined);
+  const [markSubmitting, setMarkSubmitting] = useState(false);
+  const { toast } = useToast();
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
-
-  useEffect(() => {
-    fetchAttendance();
-  }, [currentMonth]);
+  useEffect(() => { fetchEmployees(); }, []);
+  useEffect(() => { fetchAttendance(); }, [currentMonth]);
 
   const fetchEmployees = async () => {
     const { data } = await supabase.from('employees').select('id, first_name, last_name, department, designation').eq('is_active', true);
@@ -95,6 +102,38 @@ export default function Attendance() {
     setLoading(false);
   };
 
+  const handleMarkAttendance = async () => {
+    if (!markEmployeeId || !markStartDate) return;
+    setMarkSubmitting(true);
+    try {
+      const end = markEndDate || markStartDate;
+      const days = eachDayOfInterval({ start: markStartDate, end });
+      const records = days.map(day => ({
+        employee_id: markEmployeeId,
+        attendance_date: format(day, 'yyyy-MM-dd'),
+        status: markType as any,
+      }));
+      
+      for (const rec of records) {
+        const { data: existing } = await supabase.from('daily_attendance').select('id').eq('employee_id', rec.employee_id).eq('attendance_date', rec.attendance_date).maybeSingle();
+        if (existing) {
+          await supabase.from('daily_attendance').update({ status: rec.status }).eq('id', existing.id);
+        } else {
+          await supabase.from('daily_attendance').insert(rec);
+        }
+      }
+      
+      toast({ title: 'Attendance marked successfully' });
+      setMarkDialogOpen(false);
+      setMarkEmployeeId('');
+      setMarkStartDate(undefined);
+      setMarkEndDate(undefined);
+      fetchAttendance();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } finally { setMarkSubmitting(false); }
+  };
+
   const dailyRecords = useMemo(() => {
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
     return attendance.filter(a => a.attendance_date === dateStr);
@@ -111,7 +150,6 @@ export default function Attendance() {
     return { total, present, absent, halfDay, holiday, avgHours };
   }, [dailyRecords, employees]);
 
-  // Monthly view: group by employee
   const monthlyData = useMemo(() => {
     const empMap = new Map<string, { employee: Employee; records: Map<string, string> }>();
     employees.forEach(emp => {
@@ -119,24 +157,10 @@ export default function Attendance() {
     });
     attendance.forEach(rec => {
       const entry = empMap.get(rec.employee_id);
-      if (entry) {
-        entry.records.set(rec.attendance_date, rec.status);
-      }
+      if (entry) entry.records.set(rec.attendance_date, rec.status);
     });
     return Array.from(empMap.values());
   }, [attendance, employees]);
-
-  const handleExportPDF = () => {
-    const records = (viewMode === 'daily' ? dailyRecords : attendance).map(a => ({
-      employeeName: a.employees ? `${a.employees.first_name} ${a.employees.last_name || ''}`.trim() : 'Unknown',
-      date: new Date(a.attendance_date),
-      day: format(new Date(a.attendance_date), 'EEEE'),
-      checkIn: a.check_in ? format(new Date(a.check_in), 'hh:mm a') : null,
-      checkOut: a.check_out ? format(new Date(a.check_out), 'hh:mm a') : null,
-      workHours: a.work_hours,
-    }));
-    downloadAttendancePDF(records, `attendance-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-  };
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -161,29 +185,80 @@ export default function Attendance() {
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={attendance.length === 0}>
-            <Download className="w-4 h-4 mr-1" /> Export
+          <Button size="sm" onClick={() => setMarkDialogOpen(true)}>
+            <ClipboardCheck className="w-4 h-4 mr-1" /> Mark Attendance
           </Button>
           <div className="flex bg-muted rounded-lg p-0.5">
-            <Button
-              variant={viewMode === 'daily' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('daily')}
-              className="text-xs"
-            >
+            <Button variant={viewMode === 'daily' ? 'default' : 'ghost'} size="sm" onClick={() => setViewMode('daily')} className="text-xs">
               <CalendarDays className="w-3.5 h-3.5 mr-1" /> Daily
             </Button>
-            <Button
-              variant={viewMode === 'monthly' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('monthly')}
-              className="text-xs"
-            >
+            <Button variant={viewMode === 'monthly' ? 'default' : 'ghost'} size="sm" onClick={() => setViewMode('monthly')} className="text-xs">
               <CalendarDays className="w-3.5 h-3.5 mr-1" /> Monthly
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Mark Attendance Dialog */}
+      <Dialog open={markDialogOpen} onOpenChange={setMarkDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Mark Attendance</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Employee</Label>
+              <Select value={markEmployeeId} onValueChange={setMarkEmployeeId}>
+                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                <SelectContent>
+                  {employees.map(emp => (
+                    <SelectItem key={emp.id} value={emp.id}>{emp.first_name} {emp.last_name || ''}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select value={markType} onValueChange={(v: any) => setMarkType(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="present">Present (Filed)</SelectItem>
+                  <SelectItem value="absent">Leave</SelectItem>
+                  <SelectItem value="half_day">Half Day</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>From Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn('w-full justify-start text-left', !markStartDate && 'text-muted-foreground')}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {markStartDate ? format(markStartDate, 'dd MMM yyyy') : 'Pick date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={markStartDate} onSelect={setMarkStartDate} /></PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2">
+                <Label>To Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn('w-full justify-start text-left', !markEndDate && 'text-muted-foreground')}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {markEndDate ? format(markEndDate, 'dd MMM yyyy') : 'Same day'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={markEndDate} onSelect={setMarkEndDate} /></PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <Button className="w-full" onClick={handleMarkAttendance} disabled={markSubmitting || !markEmployeeId || !markStartDate}>
+              {markSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Mark Attendance
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
@@ -210,16 +285,16 @@ export default function Attendance() {
       </div>
 
       {/* Calendar Strip */}
-      <div className="mb-6 overflow-x-auto">
+      <div className="mb-6 overflow-x-auto scrollbar-hide">
         <div className="flex gap-1 min-w-max pb-2">
           {daysInMonth.map(day => {
             const dayNum = day.getDate();
             const dayName = dayNames[getDay(day)];
             const isSelected = isSameDay(day, selectedDate);
             const today = isToday(day);
-            // Check if any attendance exists for this date
             const dateStr = format(day, 'yyyy-MM-dd');
             const hasRecords = attendance.some(a => a.attendance_date === dateStr);
+            const isWeekend = getDay(day) === 0 || getDay(day) === 6;
 
             return (
               <button
@@ -231,11 +306,13 @@ export default function Attendance() {
                     ? 'bg-primary text-primary-foreground shadow-md'
                     : today
                     ? 'bg-primary/10 text-primary font-semibold'
+                    : isWeekend
+                    ? 'text-muted-foreground/50'
                     : 'hover:bg-muted text-muted-foreground',
                 )}
               >
                 <span className="text-[10px]">{dayName}</span>
-                <span className="font-bold text-sm">{dayNum}</span>
+                <span className={cn('font-bold text-sm', isWeekend && !isSelected && !today && 'opacity-50')}>{dayNum}</span>
                 {hasRecords && !isSelected && (
                   <div className="w-1 h-1 rounded-full bg-primary mt-0.5" />
                 )}
@@ -254,7 +331,7 @@ export default function Attendance() {
         <Card>
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <span className="font-semibold text-sm">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="hidden sm:flex items-center gap-3 text-xs text-muted-foreground">
               {['present', 'absent', 'half_day', 'holiday', 'weekend'].map(s => (
                 <span key={s} className="flex items-center gap-1">
                   <span className={cn('w-2 h-2 rounded-full', statusColors[s] || 'bg-gray-400')} />
@@ -264,8 +341,8 @@ export default function Attendance() {
             </div>
           </div>
           <CardContent className="p-0">
-            {/* Table Header */}
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            {/* Desktop Table Header */}
+            <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               <span>Team Member</span>
               <span>Check In</span>
               <span>Check Out</span>
@@ -280,31 +357,49 @@ export default function Attendance() {
               dailyRecords.map(record => {
                 const name = record.employees ? `${record.employees.first_name} ${record.employees.last_name || ''}`.trim() : 'Unknown';
                 return (
-                  <div key={record.id} className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-2 items-center px-4 py-3 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                  <div key={record.id} className="flex flex-col sm:grid sm:grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-1 sm:gap-2 sm:items-center px-4 py-3 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className={cn('w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold', getAvatarColor(name))}>
+                      <div className={cn('w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0', getAvatarColor(name))}>
                         {getInitials(record.employees?.first_name || '?', record.employees?.last_name)}
                       </div>
-                      <div>
-                        <p className="font-medium text-sm">{name}</p>
-                        <p className="text-xs text-muted-foreground">{record.employees?.designation || record.employees?.department || ''}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{record.employees?.designation || record.employees?.department || ''}</p>
+                        {/* Mobile inline info */}
+                        <div className="sm:hidden text-xs text-muted-foreground mt-0.5">
+                          {record.check_in ? format(new Date(record.check_in), 'HH:mm') : '—'} → {record.check_out ? format(new Date(record.check_out), 'HH:mm') : '—'}
+                          {record.work_hours ? ` · ${Math.floor(record.work_hours)}h ${Math.round((record.work_hours % 1) * 60)}m` : ''}
+                        </div>
                       </div>
+                      {/* Mobile status badge */}
+                      <span className="sm:hidden ml-auto">
+                        <span className={cn(
+                          'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border',
+                          record.status === 'present' && 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                          record.status === 'absent' && 'bg-red-50 text-red-700 border-red-200',
+                          record.status === 'half_day' && 'bg-amber-50 text-amber-700 border-amber-200',
+                          record.status === 'holiday' && 'bg-blue-50 text-blue-700 border-blue-200',
+                          record.status === 'weekend' && 'bg-gray-50 text-gray-600 border-gray-200',
+                        )}>
+                          {record.status === 'half_day' ? 'Half' : record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                        </span>
+                      </span>
                     </div>
-                    <span className="text-sm font-mono">
+                    <span className="text-sm font-mono hidden sm:flex items-center gap-1">
                       {record.check_in ? (
-                        <span className="flex items-center gap-1">
+                        <>
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                           {format(new Date(record.check_in), 'HH:mm')}
-                        </span>
+                        </>
                       ) : '—'}
                     </span>
-                    <span className="text-sm font-mono">
+                    <span className="text-sm font-mono hidden sm:block">
                       {record.check_out ? format(new Date(record.check_out), 'HH:mm') : '—'}
                     </span>
-                    <span className="text-sm font-mono">
+                    <span className="text-sm font-mono hidden sm:block">
                       {record.work_hours ? `${Math.floor(record.work_hours)}h ${Math.round((record.work_hours % 1) * 60)}m` : '—'}
                     </span>
-                    <span className="text-right">
+                    <span className="text-right hidden sm:block">
                       <span className={cn(
                         'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border',
                         record.status === 'present' && 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -327,7 +422,7 @@ export default function Attendance() {
         <Card>
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <span className="font-semibold text-sm">{format(currentMonth, 'MMMM yyyy')} — Monthly Overview</span>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="hidden sm:flex items-center gap-3 text-xs text-muted-foreground">
               {['present', 'absent', 'half_day', 'holiday', 'weekend'].map(s => (
                 <span key={s} className="flex items-center gap-1">
                   <span className={cn('w-2 h-2 rounded-full', statusDotColors[s])} />
@@ -341,15 +436,15 @@ export default function Attendance() {
               {/* Day headers */}
               <div className="flex items-center border-b border-border bg-muted/50">
                 <div className="w-52 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase">Team Member</div>
-                {daysInMonth.map(day => (
-                  <div key={day.getDate()} className="w-9 text-center py-2">
-                    <div className="text-[9px] text-muted-foreground">{dayNames[getDay(day)]}</div>
-                    <div className={cn(
-                      'text-xs font-bold',
-                      isToday(day) && 'text-primary',
-                    )}>{day.getDate()}</div>
-                  </div>
-                ))}
+                {daysInMonth.map(day => {
+                  const isWeekend = getDay(day) === 0 || getDay(day) === 6;
+                  return (
+                    <div key={day.getDate()} className={cn('w-9 text-center py-2', isWeekend && 'opacity-40')}>
+                      <div className="text-[9px] text-muted-foreground">{dayNames[getDay(day)]}</div>
+                      <div className={cn('text-xs font-bold', isToday(day) && 'text-primary')}>{day.getDate()}</div>
+                    </div>
+                  );
+                })}
                 <div className="w-16 text-center text-xs font-semibold text-muted-foreground uppercase px-2">Present</div>
               </div>
               {/* Employee rows */}
@@ -370,8 +465,9 @@ export default function Attendance() {
                     {daysInMonth.map(day => {
                       const dateStr = format(day, 'yyyy-MM-dd');
                       const status = records.get(dateStr);
+                      const isWeekend = getDay(day) === 0 || getDay(day) === 6;
                       return (
-                        <div key={day.getDate()} className="w-9 flex justify-center py-2.5">
+                        <div key={day.getDate()} className={cn('w-9 flex justify-center py-2.5', isWeekend && 'opacity-40')}>
                           {status ? (
                             <div className={cn('w-3 h-3 rounded-full', statusDotColors[status] || 'bg-gray-300')} title={`${format(day, 'MMM d')}: ${status}`} />
                           ) : (

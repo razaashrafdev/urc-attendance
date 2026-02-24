@@ -312,7 +312,7 @@ export type Database = {
         | "weekend"
         | "holiday"
         | "half_day"
-      holiday_type: "paid" | "unpaid"
+      holiday_type: "paid" | "unpaid" | "public" | "office"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -448,7 +448,7 @@ export const Constants = {
         "holiday",
         "half_day",
       ],
-      holiday_type: ["paid", "unpaid"],
+      holiday_type: ["paid", "unpaid", "public", "office"],
     },
   },
 } as const

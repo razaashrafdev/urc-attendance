@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Loader2, Users, UserCheck, UserX } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Loader2 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,21 +27,6 @@ interface Employee {
 const defaultEmployee: Omit<Employee, 'id'> = {
   device_user_id: '', employee_code: '', first_name: '', last_name: '', email: '', department: '', designation: '', phone: '', is_active: true,
 };
-
-const avatarColors = [
-  'bg-blue-600', 'bg-emerald-600', 'bg-amber-600', 'bg-purple-600',
-  'bg-pink-600', 'bg-cyan-600', 'bg-red-600', 'bg-indigo-600',
-];
-
-function getAvatarColor(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return avatarColors[Math.abs(hash) % avatarColors.length];
-}
-
-function getInitials(first: string, last?: string | null) {
-  return `${first.charAt(0)}${last ? last.charAt(0) : ''}`.toUpperCase();
-}
 
 export default function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -98,11 +83,8 @@ export default function Employees() {
     emp.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     emp.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     emp.device_user_id.includes(searchQuery) ||
-    emp.department?.toLowerCase().includes(searchQuery.toLowerCase())
+    emp.phone?.includes(searchQuery)
   );
-
-  const activeCount = employees.filter(e => e.is_active).length;
-  const inactiveCount = employees.filter(e => !e.is_active).length;
 
   return (
     <AppLayout>
@@ -110,13 +92,13 @@ export default function Employees() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-semibold">Employees</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage employee records and device mappings</p>
+          <p className="text-sm text-muted-foreground mt-1">Manage employee records</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setEditingEmployee(null); setFormData(defaultEmployee); } }}>
           <DialogTrigger asChild>
             <Button><Plus className="w-4 h-4 mr-2" />Add Employee</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
             </DialogHeader>
@@ -126,10 +108,8 @@ export default function Employees() {
                 <div className="space-y-2"><Label>Employee Code</Label><Input value={formData.employee_code || ''} onChange={(e) => setFormData({ ...formData, employee_code: e.target.value })} placeholder="e.g., EMP-001" /></div>
                 <div className="space-y-2"><Label>First Name *</Label><Input value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} required /></div>
                 <div className="space-y-2"><Label>Last Name</Label><Input value={formData.last_name || ''} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} /></div>
-                <div className="space-y-2"><Label>Email</Label><Input type="email" value={formData.email || ''} onChange={(e) => setFormData({ ...formData, email: e.target.value })} /></div>
                 <div className="space-y-2"><Label>Phone</Label><Input value={formData.phone || ''} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} /></div>
                 <div className="space-y-2"><Label>Department</Label><Input value={formData.department || ''} onChange={(e) => setFormData({ ...formData, department: e.target.value })} /></div>
-                <div className="space-y-2"><Label>Designation</Label><Input value={formData.designation || ''} onChange={(e) => setFormData({ ...formData, designation: e.target.value })} /></div>
               </div>
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
@@ -162,10 +142,10 @@ export default function Employees() {
           ) : (
             <>
               {/* Desktop table header */}
-              <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_100px] gap-2 px-4 py-3 bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                <span>Employee</span>
-                <span>Department</span>
-                <span>Device ID</span>
+              <div className="hidden sm:grid grid-cols-[1fr_1.5fr_1fr_80px_80px] gap-2 px-4 py-3 bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <span>User ID</span>
+                <span>Name</span>
+                <span>Phone</span>
                 <span>Status</span>
                 <span className="text-right">Actions</span>
               </div>
@@ -175,21 +155,16 @@ export default function Employees() {
                 filteredEmployees.map(emp => {
                   const name = `${emp.first_name} ${emp.last_name || ''}`.trim();
                   return (
-                    <div key={emp.id} className="flex flex-col md:grid md:grid-cols-[2fr_1fr_1fr_1fr_100px] gap-2 md:items-center px-4 py-3 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className={cn('w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0', getAvatarColor(name))}>
-                          {getInitials(emp.first_name, emp.last_name)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{name}</p>
-                          <p className="text-xs text-muted-foreground">{emp.designation || emp.email || ''}</p>
-                        </div>
-                      </div>
-                      <span className="text-sm text-muted-foreground md:text-foreground">{emp.department || '—'}</span>
+                    <div key={emp.id} className="flex flex-col sm:grid sm:grid-cols-[1fr_1.5fr_1fr_80px_80px] gap-1 sm:gap-2 sm:items-center px-4 py-3 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                       <span className="text-sm font-mono">{emp.device_user_id}</span>
+                      <div>
+                        <p className="font-medium text-sm">{name}</p>
+                        <p className="text-xs text-muted-foreground sm:hidden">{emp.phone || '—'}</p>
+                      </div>
+                      <span className="text-sm hidden sm:block">{emp.phone || '—'}</span>
                       <span>
                         <span className={cn(
-                          'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border',
+                          'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border',
                           emp.is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
                         )}>
                           {emp.is_active ? 'Active' : 'Inactive'}
